@@ -1,47 +1,117 @@
-// メンバー削除（通常）
-            const removeMember = (memberName) => {
-                const newMembers = members.filter(m => m !== memberName);
-                const newSchedules = { ...schedules };
-                const newChecks = { ...activeMemberChecks };
-                
-                delete newSchedules[memberName];
-                delete newChecks[memberName];
-                
-                setMembers(newMembers);
-                setSchedules(newSchedules);
-                setActiveMemberChecks(newChecks);
-                
-                saveData({
-                    members: newMembers,
-                    schedules: newSchedules,
-                    activeMemberChecks: newChecks
-                });
-            };<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>みんなの予定調整カレンダー</title>
+    <title>スケジュール調整カレンダー</title>
+    <!-- Tailwind CSSをCDNから読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Interフォントを読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- ReactとBabelを読み込み -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css">
+    <!-- Firebase JS SDKを読み込み -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* スクロールバーのスタイルをカスタマイズ */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        // Reactコードはここから始まります
 
-        // Lucide アイコンコンポーネント
+        // Firebaseの設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyDT9fgsKoXWHKxs7KvekjW-TfhvDhpfLCE",
+            authDomain: "schedule-6491a.firebaseapp.com",
+            databaseURL: "https://schedule-6491a-default-rtdb.firebaseio.com",
+            projectId: "schedule-6491a",
+            storageBucket: "schedule-6491a.appspot.com",
+            messagingSenderId: "110166663347463",
+            appId: "1:110166663347463:web:b1a49f12a3483ddcd53a3"
+        };
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Lucide IconsをインラインSVGとして定義
         const LucideIcon = ({ name, className = "w-4 h-4" }) => {
-            return React.createElement('i', { 
-                'data-lucide': name, 
-                className: className 
-            });
+            const icons = {
+                calendar: (
+                    <path d="M8 2v4M16 2v4M21 13V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6" />
+                ),
+                users: (
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                ),
+                plus: (
+                    <path d="M5 12h14M12 5v14" />
+                ),
+                'trash-2': (
+                    <path d="M3 6h18" />
+                ),
+                check: (
+                    <path d="M20 6 9 17l-5-5" />
+                ),
+                wifi: (
+                    <path d="M12 18h.01" />
+                ),
+                'wifi-off': (
+                    <path d="M1 1l22 22" />
+                ),
+                shield: (
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                ),
+                'shield-off': (
+                    <path d="M19.5 9.5a2 2 0 0 0-2-2h-1a2 2 0 0 0-2-2H9L7.5 4" />
+                ),
+                database: (
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                ),
+                'x-circle': (
+                    <circle cx="12" cy="12" r="10" />
+                )
+            };
+
+            return (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                >
+                    {icons[name]}
+                </svg>
+            );
         };
 
         const Calendar = (props) => <LucideIcon name="calendar" {...props} />;
@@ -54,102 +124,130 @@
         const Shield = (props) => <LucideIcon name="shield" {...props} />;
         const ShieldOff = (props) => <LucideIcon name="shield-off" {...props} />;
         const Database = (props) => <LucideIcon name="database" {...props} />;
+        const XCircle = (props) => <LucideIcon name="x-circle" {...props} />;
+        const { useState, useEffect, useRef } = React;
+
+        // カスタムモーダルコンポーネント
+        const Modal = ({ isOpen, message, onConfirm, onCancel, showCancel = true }) => {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                    <div className="relative p-5 border w-96 shadow-lg rounded-md bg-white">
+                        <div className="mt-3 text-center">
+                            <XCircle className="mx-auto flex items-center justify-center h-12 w-12 text-red-500" />
+                            <h3 className="text-lg leading-6 font-medium text-gray-900 mt-2">{message}</h3>
+                            <div className="mt-4 flex gap-4 justify-center">
+                                <button
+                                    onClick={onConfirm}
+                                    className="w-1/2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                >
+                                    はい
+                                </button>
+                                {showCancel && (
+                                    <button
+                                        onClick={onCancel}
+                                        className="w-1/2 px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-colors"
+                                    >
+                                        キャンセル
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         const GroupSchedulePlanner = () => {
             const [members, setMembers] = useState([]);
             const [newMemberName, setNewMemberName] = useState('');
             const [schedules, setSchedules] = useState({});
-            const [selectedMonth, setSelectedMonth] = useState(7); // 8月 (0-indexed)
+            const [selectedMonth, setSelectedMonth] = useState(7);
             const [currentYear] = useState(2025);
             const [activeMemberChecks, setActiveMemberChecks] = useState({});
             const [isConnected, setIsConnected] = useState(false);
             const [isAdmin, setIsAdmin] = useState(false);
             const [adminPassword, setAdminPassword] = useState('');
-            
-            // 管理者パスワード（実際の使用時は変更してください）
+
+            const [modalState, setModalState] = useState({
+                isOpen: false,
+                message: '',
+                onConfirm: () => {},
+                showCancel: true
+            });
+
             const ADMIN_PASSWORD = 'admin123';
 
-            // Firebase設定（画面の設定値を使用）
-            const firebaseConfig = {
-                apiKey: "AIzaSyDT9fgsKoXWHKxs7KvekjW-TfhvDhpfLCE",
-                authDomain: "schedule-6491a.firebaseapp.com",
-                databaseURL: "https://schedule-6491a-default-rtdb.firebaseio.com",
-                projectId: "schedule-6491a",
-                storageBucket: "schedule-6491a.appspot.com",
-                messagingSenderId: "110166663347463",
-                appId: "1:110166663347463:web:b1a49f12a3483ddcd53a3"
-            };
-
-            // Firebase初期化
-            const initFirebase = () => {
-                if (typeof firebase === 'undefined') {
-                    console.warn('Firebase未接続: ローカルモードで動作します');
-                    return null;
-                }
-                
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                }
-                return firebase.database();
-            };
-
-            const database = initFirebase();
-
-            // アプリ起動時にFirebaseから読み込み
             useEffect(() => {
-                if (database) {
-                    setIsConnected(true);
-                    
-                    // データをリアルタイム取得
-                    const dataRef = database.ref('scheduleData');
-                    
-                    const handleDataChange = (snapshot) => {
-                        if (snapshot.exists()) {
-                            const data = snapshot.val();
-                            setMembers(data.members || []);
-                            setSchedules(data.schedules || {});
-                            setActiveMemberChecks(data.activeMemberChecks || {});
-                        }
-                    };
+                const dataRef = database.ref('scheduleData');
+                dataRef.on('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        setMembers(data.members || []);
+                        setSchedules(data.schedules || {});
+                        setActiveMemberChecks(data.activeMemberChecks || {});
+                        setIsConnected(true);
+                    } else {
+                        // データがない場合は接続中として扱う
+                        setIsConnected(true);
+                    }
+                }, (error) => {
+                    console.error('Firebase接続エラー:', error);
+                    setIsConnected(false);
+                });
 
-                    dataRef.on('value', handleDataChange);
-                    
-                    return () => dataRef.off('value', handleDataChange);
-                } else {
-                    // Firebase未接続時は何もしない（ローカルストレージは使用不可）
-                    console.log('Firebase未接続のため、データは保存されません');
+                return () => {
+                    dataRef.off();
+                };
+            }, []);
+
+            const saveData = (updates) => {
+                if (!isConnected) {
+                    console.warn('Firebaseが接続されていないため、データは保存されません。');
+                    return;
                 }
-            }, [database]);
-
-            // Firebaseにデータを保存
-            const saveData = async (updates) => {
                 const dataToSave = {
                     members,
                     schedules,
                     activeMemberChecks,
                     ...updates
                 };
-
-                if (database && isConnected) {
-                    try {
-                        await database.ref('scheduleData').set(dataToSave);
-                    } catch (error) {
-                        console.error('Firebase保存エラー:', error);
-                    }
-                }
+                database.ref('scheduleData').set(dataToSave).catch((error) => {
+                    console.error('Firebase保存エラー:', error);
+                });
             };
 
-            // 月の日数を取得
+            const showAlert = (message) => {
+                setModalState({
+                    isOpen: true,
+                    message: message,
+                    onConfirm: () => setModalState({ ...modalState, isOpen: false }),
+                    showCancel: false
+                });
+            };
+
+            const showConfirm = (message, onConfirm) => {
+                setModalState({
+                    isOpen: true,
+                    message: message,
+                    onConfirm: () => {
+                        onConfirm();
+                        setModalState({ ...modalState, isOpen: false });
+                    },
+                    onCancel: () => setModalState({ ...modalState, isOpen: false }),
+                    showCancel: true
+                });
+            };
+
             const getDaysInMonth = (year, month) => {
                 return new Date(year, month + 1, 0).getDate();
             };
 
-            // 月の最初の日の曜日を取得
             const getFirstDayOfMonth = (year, month) => {
                 return new Date(year, month, 1).getDay();
             };
 
-            // メンバー追加
             const addMember = () => {
                 if (newMemberName.trim() && !members.includes(newMemberName.trim())) {
                     const newMember = newMemberName.trim();
@@ -174,106 +272,111 @@
                 }
             };
 
-            // 管理者ログイン
+            const removeMember = (memberName) => {
+                showConfirm(`${memberName}さんをメンバーリストから削除しますか？`, () => {
+                    const newMembers = members.filter(m => m !== memberName);
+                    const newSchedules = { ...schedules };
+                    const newChecks = { ...activeMemberChecks };
+                    
+                    delete newSchedules[memberName];
+                    delete newChecks[memberName];
+                    
+                    setMembers(newMembers);
+                    setSchedules(newSchedules);
+                    setActiveMemberChecks(newChecks);
+                    
+                    saveData({
+                        members: newMembers,
+                        schedules: newSchedules,
+                        activeMemberChecks: newChecks
+                    });
+                    showAlert(`${memberName}さんを削除しました。`);
+                });
+            };
+
             const adminLogin = () => {
                 if (adminPassword === ADMIN_PASSWORD) {
                     setIsAdmin(true);
                     setAdminPassword('');
-                    alert('管理者モードでログインしました');
+                    showAlert('管理者モードでログインしました');
                 } else {
-                    alert('パスワードが違います');
+                    showAlert('パスワードが違います');
                     setAdminPassword('');
                 }
             };
 
-            // 管理者ログアウト
             const adminLogout = () => {
                 setIsAdmin(false);
-                alert('管理者モードを終了しました');
+                showAlert('管理者モードを終了しました');
             };
 
-            // メンバーを完全削除（全ての月のデータを削除）
             const permanentDeleteMember = (memberName) => {
-                if (!confirm(`${memberName}さんのデータを完全に削除しますか？\n（全ての月の予定データが削除されます）`)) {
-                    return;
-                }
-
-                const newMembers = members.filter(m => m !== memberName);
-                const newSchedules = { ...schedules };
-                const newChecks = { ...activeMemberChecks };
-                
-                // 全ての月のデータを削除
-                delete newSchedules[memberName];
-                delete newChecks[memberName];
-                
-                setMembers(newMembers);
-                setSchedules(newSchedules);
-                setActiveMemberChecks(newChecks);
-                
-                saveData({
-                    members: newMembers,
-                    schedules: newSchedules,
-                    activeMemberChecks: newChecks
+                showConfirm(`${memberName}さんのデータを完全に削除しますか？\n（全ての月の予定データが削除されます）`, () => {
+                    const newMembers = members.filter(m => m !== memberName);
+                    const newSchedules = { ...schedules };
+                    const newChecks = { ...activeMemberChecks };
+                    
+                    delete newSchedules[memberName];
+                    delete newChecks[memberName];
+                    
+                    setMembers(newMembers);
+                    setSchedules(newSchedules);
+                    setActiveMemberChecks(newChecks);
+                    
+                    saveData({
+                        members: newMembers,
+                        schedules: newSchedules,
+                        activeMemberChecks: newChecks
+                    });
+                    
+                    showAlert(`${memberName}さんのデータを完全に削除しました`);
                 });
-                
-                alert(`${memberName}さんのデータを完全に削除しました`);
             };
 
-            // 過去の月のデータを削除
             const cleanOldMonthData = () => {
-                if (!confirm('過去の月の予定データを削除しますか？\n（現在の月より前のデータが削除されます）')) {
-                    return;
-                }
+                showConfirm('過去の月の予定データを削除しますか？\n（現在の月より前のデータが削除されます）', () => {
+                    const newSchedules = { ...schedules };
+                    let deletedCount = 0;
 
-                const newSchedules = { ...schedules };
-                let deletedCount = 0;
+                    Object.keys(newSchedules).forEach(memberName => {
+                        const memberSchedule = newSchedules[memberName];
+                        Object.keys(memberSchedule).forEach(dateKey => {
+                            const [year, month, day] = dateKey.split('-').map(Number);
+                            const scheduleDate = new Date(year, month - 1, day);
+                            const currentDate = new Date(currentYear, selectedMonth, 1);
+                            
+                            if (scheduleDate < currentDate) {
+                                delete memberSchedule[dateKey];
+                                deletedCount++;
+                            }
+                        });
+                    });
 
-                // 各メンバーの予定を確認
-                Object.keys(newSchedules).forEach(memberName => {
-                    const memberSchedule = newSchedules[memberName];
-                    Object.keys(memberSchedule).forEach(dateKey => {
-                        const [year, month, day] = dateKey.split('-').map(Number);
-                        const scheduleDate = new Date(year, month - 1, day);
-                        const currentDate = new Date(currentYear, selectedMonth, 1);
+                    setSchedules(newSchedules);
+                    saveData({ schedules: newSchedules });
+                    
+                    showAlert(`過去の月のデータを ${deletedCount} 件削除しました`);
+                });
+            };
+
+            const clearAllData = () => {
+                showConfirm('全てのデータを削除しますか？\n（メンバー、予定、設定が全て削除されます）', () => {
+                    showConfirm('本当に削除しますか？この操作は取り消せません。', () => {
+                        setMembers([]);
+                        setSchedules({});
+                        setActiveMemberChecks({});
                         
-                        // 現在の月より前のデータを削除
-                        if (scheduleDate < currentDate) {
-                            delete memberSchedule[dateKey];
-                            deletedCount++;
-                        }
+                        saveData({
+                            members: [],
+                            schedules: {},
+                            activeMemberChecks: {}
+                        });
+                        
+                        showAlert('全てのデータを削除しました');
                     });
                 });
-
-                setSchedules(newSchedules);
-                saveData({ schedules: newSchedules });
-                
-                alert(`過去の月のデータを ${deletedCount} 件削除しました`);
             };
 
-            // 全データを削除
-            const clearAllData = () => {
-                if (!confirm('全てのデータを削除しますか？\n（メンバー、予定、設定が全て削除されます）')) {
-                    return;
-                }
-                
-                if (!confirm('本当に削除しますか？この操作は取り消せません。')) {
-                    return;
-                }
-
-                setMembers([]);
-                setSchedules({});
-                setActiveMemberChecks({});
-                
-                saveData({
-                    members: [],
-                    schedules: {},
-                    activeMemberChecks: {}
-                });
-                
-                alert('全てのデータを削除しました');
-            };
-
-            // メンバーのチェック状態を切り替え
             const toggleMemberCheck = (memberName) => {
                 const newChecks = {
                     ...activeMemberChecks,
@@ -284,7 +387,6 @@
                 saveData({ activeMemberChecks: newChecks });
             };
 
-            // 予定の切り替え（空き/忙しい）
             const toggleSchedule = (memberName, date) => {
                 const dateKey = `${currentYear}-${selectedMonth + 1}-${date}`;
                 const newSchedules = { ...schedules };
@@ -298,7 +400,6 @@
                 saveData({ schedules: newSchedules });
             };
 
-            // 指定日にチェックされたメンバーが空いているかチェック
             const isEveryoneFree = (date) => {
                 const activeMembers = members.filter(member => activeMemberChecks[member]);
                 if (activeMembers.length === 0) return false;
@@ -310,73 +411,40 @@
                 });
             };
 
-            // メンバーが指定日に忙しいかチェック
             const isMemberBusy = (memberName, date) => {
                 const dateKey = `${currentYear}-${selectedMonth + 1}-${date}`;
                 return schedules[memberName] && schedules[memberName][dateKey];
             };
 
-            // カレンダーの描画
             const renderCalendar = () => {
                 const daysInMonth = getDaysInMonth(currentYear, selectedMonth);
                 const firstDay = getFirstDayOfMonth(currentYear, selectedMonth);
                 const days = [];
                 
-                // 空のセルを追加（月の最初の日まで）
                 for (let i = 0; i < firstDay; i++) {
-                    days.push(React.createElement('div', { key: `empty-${i}`, className: "h-8" }));
+                    days.push(<div key={`empty-${i}`} className="h-8"></div>);
                 }
                 
-                // 日付のセルを追加
                 for (let date = 1; date <= daysInMonth; date++) {
                     const isAllFree = isEveryoneFree(date);
                     const today = new Date();
                     const isToday = today.getFullYear() === currentYear && 
-                                   today.getMonth() === selectedMonth && 
-                                   today.getDate() === date;
+                                     today.getMonth() === selectedMonth && 
+                                     today.getDate() === date;
                     
                     days.push(
-                        React.createElement('div', { key: date, className: "relative" },
-                            React.createElement('div', {
-                                className: `h-8 w-8 flex items-center justify-center rounded text-sm font-medium cursor-pointer transition-all ${
+                        <div key={date} className="relative">
+                            <div
+                                className={`h-8 w-8 flex items-center justify-center rounded text-sm font-medium transition-all ${
                                     isToday ? 'ring-2 ring-blue-500' : ''
                                 } ${
-                                    isAllFree ? 'bg-green-100 text-green-800 shadow-md' : 'bg-gray-50 hover:bg-gray-100'
-                                }`
-                            }, 
-                                date,
-                                isAllFree && React.createElement(Check, { 
-                                    className: "absolute -top-1 -right-1 w-3 h-3 text-green-600 bg-white rounded-full" 
-                                })
-                            ),
-                    // 管理者ログイン/ログアウト
-                    React.createElement('div', { className: "mt-4 flex items-center justify-center gap-2 text-sm" },
-                        !isAdmin ? [
-                            React.createElement('input', {
-                                key: "password",
-                                type: "password",
-                                value: adminPassword,
-                                onChange: (e) => setAdminPassword(e.target.value),
-                                placeholder: "管理者パスワード",
-                                className: "px-2 py-1 text-xs border border-gray-300 rounded",
-                                onKeyPress: (e) => e.key === 'Enter' && adminLogin()
-                            }),
-                            React.createElement('button', {
-                                key: "login",
-                                onClick: adminLogin,
-                                className: "px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
-                            }, "管理者ログイン")
-                        ] : [
-                            React.createElement(Shield, { key: "shield", className: "w-4 h-4 text-orange-600" }),
-                            React.createElement('span', { key: "text", className: "text-orange-600 font-medium" }, "管理者モード"),
-                            React.createElement('button', {
-                                key: "logout",
-                                onClick: adminLogout,
-                                className: "px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 ml-2"
-                            }, "ログアウト")
-                        ]
-                    )
-                        )
+                                    isAllFree ? 'bg-green-100 text-green-800 shadow-md' : 'bg-gray-50'
+                                }`}
+                            >
+                                {date}
+                                {isAllFree && <Check className="absolute -top-1 -right-1 w-3 h-3 text-green-600 bg-white rounded-full" />}
+                            </div>
+                        </div>
                     );
                 }
                 
@@ -390,198 +458,240 @@
 
             const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
 
-            return React.createElement('div', { className: "max-w-6xl mx-auto p-6 bg-white" },
-                // タイトル
-                React.createElement('div', { className: "text-center mb-8" },
-                    React.createElement('h1', { className: "text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2" },
-                        React.createElement(Calendar, { className: "w-8 h-8 text-blue-600" }),
-                        "みんなの予定調整カレンダー"
-                    ),
-                    React.createElement('p', { className: "text-gray-600" }, 
-                        "遊びに行けない日をマークして、みんなが空いている日を見つけよう！"
-                    ),
-                    // 接続状態表示
-                    React.createElement('div', { className: "mt-4 flex items-center justify-center gap-2 text-sm" },
-                        isConnected ? [
-                            React.createElement(Wifi, { key: "wifi", className: "w-4 h-4 text-green-600" }),
-                            React.createElement('span', { key: "text", className: "text-green-600" }, "Firebase接続中 - リアルタイム同期")
-                        ] : [
-                            React.createElement(WifiOff, { key: "wifi-off", className: "w-4 h-4 text-orange-600" }),
-                            React.createElement('span', { key: "text", className: "text-orange-600" }, "Firebase未接続 - データは保存されません")
-                        ]
-                    )
-                ),
+            return (
+                <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg my-8">
+                    <Modal
+                        isOpen={modalState.isOpen}
+                        message={modalState.message}
+                        onConfirm={modalState.onConfirm}
+                        onCancel={modalState.onCancel}
+                        showCancel={modalState.showCancel}
+                    />
 
-                // メンバー管理
-                React.createElement('div', { className: "mb-8 p-6 bg-gray-50 rounded-lg" },
-                    React.createElement('h2', { className: "text-xl font-semibold mb-4 flex items-center gap-2" },
-                        React.createElement(Users, { className: "w-5 h-5" }),
-                        "メンバー管理"
-                    ),
-                    React.createElement('div', { className: "flex gap-2 mb-4" },
-                        React.createElement('input', {
-                            type: "text",
-                            value: newMemberName,
-                            onChange: (e) => setNewMemberName(e.target.value),
-                            placeholder: "名前を入力",
-                            className: "flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
-                            onKeyPress: (e) => e.key === 'Enter' && addMember()
-                        }),
-                        React.createElement('button', {
-                            onClick: addMember,
-                            className: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
-                        },
-                            React.createElement(Plus, { className: "w-4 h-4" }),
-                            "追加"
-                        )
-                    ),
-                    React.createElement('div', { className: "flex flex-wrap gap-2" },
-                        members.map(member =>
-                            React.createElement('div', { 
-                                key: member, 
-                                className: "flex items-center gap-2 bg-white px-3 py-2 rounded-lg border" 
-                            },
-                                React.createElement('input', {
-                                    type: "checkbox",
-                                    checked: activeMemberChecks[member] || false,
-                                    onChange: () => toggleMemberCheck(member),
-                                    className: "w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                                }),
-                                React.createElement('span', { 
-                                    className: activeMemberChecks[member] ? 'text-gray-900' : 'text-gray-400 line-through' 
-                                }, member),
-                                React.createElement('button', {
-                                    onClick: () => removeMember(member),
-                                    className: "text-red-500 hover:text-red-700 ml-1"
-                                },
-                                    React.createElement(Trash2, { className: "w-4 h-4" })
-                                ),
-                                // 管理者モード時の完全削除ボタン
-                                isAdmin && React.createElement('button', {
-                                    onClick: () => permanentDeleteMember(member),
-                                    className: "text-red-700 hover:text-red-900 ml-1 font-bold",
-                                    title: "完全削除（全月のデータ削除）"
-                                }, "×")
-                            )
-                        )
-                    ),
-                    members.length > 0 && React.createElement('div', { className: "mt-3 text-sm text-gray-600" },
-                        `チェックしたメンバー (${members.filter(m => activeMemberChecks[m]).length}人) の空いている日を表示中`
-                    ),
-                    
-                    // 管理者モード時の管理機能
-                    isAdmin && React.createElement('div', { className: "mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg" },
-                        React.createElement('h3', { className: "text-sm font-semibold text-orange-800 mb-3 flex items-center gap-2" },
-                            React.createElement(Shield, { className: "w-4 h-4" }),
-                            "管理者機能"
-                        ),
-                        React.createElement('div', { className: "flex flex-wrap gap-2" },
-                            React.createElement('button', {
-                                onClick: cleanOldMonthData,
-                                className: "px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                            }, "過去の月を削除"),
-                            React.createElement('button', {
-                                onClick: clearAllData,
-                                className: "px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                            }, "全データ削除")
-                        ),
-                        React.createElement('p', { className: "text-xs text-orange-700 mt-2" },
-                            "⚠️ 削除操作は取り消せません。メンバー名横の「×」で完全削除も可能です。"
-                        )
-                    )
-                ),
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
+                            <Calendar className="w-8 h-8 text-blue-600" />
+                            スケジュール調整カレンダー
+                        </h1>
+                        <p className="text-gray-600">
+                            皆様の予定を調整するためのカレンダーです。ご都合の悪い日時を登録することで、共通の参加可能日を効率的に特定できます。
+                        </p>
+                        <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+                            {isConnected ? (
+                                <>
+                                    <Wifi className="w-4 h-4 text-green-600" />
+                                    <span className="text-green-600">Firebase接続中 - リアルタイム同期</span>
+                                </>
+                            ) : (
+                                <>
+                                    <WifiOff className="w-4 h-4 text-orange-600" />
+                                    <span className="text-orange-600">Firebase未接続 - データは保存されません</span>
+                                </>
+                            )}
+                        </div>
+                    </div>
 
-                // 月選択
-                React.createElement('div', { className: "mb-6 text-center" },
-                    React.createElement('select', {
-                        value: selectedMonth,
-                        onChange: (e) => setSelectedMonth(parseInt(e.target.value)),
-                        className: "px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium"
-                    },
-                        monthNames.map((month, index) =>
-                            React.createElement('option', { key: index, value: index },
-                                `${currentYear}年 ${month}`
-                            )
-                        )
-                    )
-                ),
+                    <div className="mb-8 p-6 bg-gray-50 rounded-lg">
+                        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <Users className="w-5 h-5" />
+                            メンバー管理
+                        </h2>
+                        <div className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                value={newMemberName}
+                                onChange={(e) => setNewMemberName(e.target.value)}
+                                placeholder="名前を入力"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onKeyPress={(e) => e.key === 'Enter' && addMember()}
+                            />
+                            <button
+                                onClick={addMember}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" />
+                                追加
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {members.map(member => (
+                                <div key={member} className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border">
+                                    <input
+                                        type="checkbox"
+                                        checked={activeMemberChecks[member] || false}
+                                        onChange={() => toggleMemberCheck(member)}
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    <span className={activeMemberChecks[member] ? 'text-gray-900' : 'text-gray-400 line-through'}>{member}</span>
+                                    <button
+                                        onClick={() => removeMember(member)}
+                                        className="text-red-500 hover:text-red-700 ml-1"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => permanentDeleteMember(member)}
+                                            className="text-red-700 hover:text-red-900 ml-1 font-bold"
+                                            title="完全削除（全月のデータ削除）"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        {members.length > 0 && (
+                            <div className="mt-3 text-sm text-gray-600">
+                                チェックしたメンバー ({members.filter(m => activeMemberChecks[m]).length}人) の空いている日を表示中
+                            </div>
+                        )}
+                        
+                        {isAdmin && (
+                            <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                                <h3 className="text-sm font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                                    <Shield className="w-4 h-4" />
+                                    管理者機能
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={cleanOldMonthData}
+                                        className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                                    >
+                                        過去の月を削除
+                                    </button>
+                                    <button
+                                        onClick={clearAllData}
+                                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                    >
+                                        全データ削除
+                                    </button>
+                                </div>
+                                <p className="text-xs text-orange-700 mt-2">
+                                    ⚠️ 削除操作は取り消せません。メンバー名横の「×」で完全削除も可能です。
+                                </p>
+                            </div>
+                        )}
+                    </div>
 
-                // カレンダー表示
-                React.createElement('div', { className: "mb-8" },
-                    React.createElement('div', { className: "bg-white border border-gray-200 rounded-lg p-4" },
-                        React.createElement('div', { className: "grid grid-cols-7 gap-2 mb-4" },
-                            weekdays.map(day =>
-                                React.createElement('div', { 
-                                    key: day, 
-                                    className: "text-center font-medium text-gray-700 py-2" 
-                                }, day)
-                            )
-                        ),
-                        React.createElement('div', { className: "grid grid-cols-7 gap-2" },
-                            renderCalendar()
-                        ),
-                        React.createElement('div', { className: "mt-4 flex items-center gap-4 text-sm" },
-                            React.createElement('div', { className: "flex items-center gap-1" },
-                                React.createElement('div', { className: "w-4 h-4 bg-green-100 border border-green-300 rounded" }),
-                                React.createElement('span', {}, "選択メンバーみんな空いてる日")
-                            ),
-                            React.createElement('div', { className: "flex items-center gap-1" },
-                                React.createElement(Check, { className: "w-4 h-4 text-green-600" }),
-                                React.createElement('span', {}, "おすすめの日")
-                            )
-                        )
-                    )
-                ),
+                    <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+                        {!isAdmin ? (
+                            <>
+                                <input
+                                    type="password"
+                                    value={adminPassword}
+                                    onChange={(e) => setAdminPassword(e.target.value)}
+                                    placeholder="管理者パスワード"
+                                    className="px-2 py-1 text-xs border border-gray-300 rounded"
+                                    onKeyPress={(e) => e.key === 'Enter' && adminLogin()}
+                                />
+                                <button
+                                    onClick={adminLogin}
+                                    className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+                                >
+                                    管理者ログイン
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Shield className="w-4 h-4 text-orange-600" />
+                                <span className="text-orange-600 font-medium">管理者モード</span>
+                                <button
+                                    onClick={adminLogout}
+                                    className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 ml-2"
+                                >
+                                    ログアウト
+                                </button>
+                            </>
+                        )}
+                    </div>
 
-                // 個別スケジュール入力
-                members.length > 0 && React.createElement('div', { className: "space-y-6" },
-                    React.createElement('h2', { className: "text-xl font-semibold" }, "個別スケジュール入力"),
-                    members.map(member =>
-                        React.createElement('div', { 
-                            key: member, 
-                            className: "p-4 border border-gray-200 rounded-lg" 
-                        },
-                            React.createElement('h3', { className: "font-medium mb-3" }, `${member}さんの予定`),
-                            React.createElement('div', { className: "grid grid-cols-7 gap-1" },
-                                Array.from({ length: getDaysInMonth(currentYear, selectedMonth) }, (_, i) => {
-                                    const date = i + 1;
-                                    const isBusy = isMemberBusy(member, date);
-                                    
-                                    return React.createElement('button', {
-                                        key: date,
-                                        onClick: () => toggleSchedule(member, date),
-                                        className: `h-10 w-10 text-xs rounded transition-all border ${
-                                            isBusy 
-                                                ? 'bg-red-100 border-red-300 text-red-700 hover:bg-red-200' 
-                                                : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
-                                        }`
-                                    }, date);
-                                })
-                            ),
-                            React.createElement('p', { className: "text-xs text-gray-600 mt-2" },
-                                "クリックで切り替え: ",
-                                React.createElement('span', { className: "text-green-600 ml-1" }, "緑=空いてる"),
-                                React.createElement('span', { className: "text-red-600 ml-2" }, "赤=忙しい")
-                            )
-                        )
-                    )
-                ),
+                    <div className="mb-6 text-center">
+                        <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium"
+                        >
+                            {monthNames.map((month, index) => (
+                                <option key={index} value={index}>
+                                    {`${currentYear}年 ${month}`}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                // メンバーなしの場合
-                members.length === 0 && React.createElement('div', { className: "text-center py-12 text-gray-500" },
-                    React.createElement(Users, { className: "w-12 h-12 mx-auto mb-4 opacity-50" }),
-                    React.createElement('p', {}, "メンバーを追加して予定調整を始めましょう！")
-                )
+                    <div className="mb-8">
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="grid grid-cols-7 gap-2 mb-4">
+                                {weekdays.map(day => (
+                                    <div key={day} className="text-center font-medium text-gray-700 py-2">
+                                        {day}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-2">
+                                {renderCalendar()}
+                            </div>
+                            <div className="mt-4 flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-1">
+                                    <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
+                                    <span>選択メンバー全員が参加可能な日</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Check className="w-4 h-4 text-green-600" />
+                                    <span>推奨日</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {members.length > 0 && (
+                        <div className="space-y-6">
+                            <h2 className="text-xl font-semibold">個別スケジュール入力</h2>
+                            {members.map(member => (
+                                <div key={member} className="p-4 border border-gray-200 rounded-lg">
+                                    <h3 className="font-medium mb-3">{`${member}さんの予定`}</h3>
+                                    <div className="grid grid-cols-7 gap-1">
+                                        {Array.from({ length: getDaysInMonth(currentYear, selectedMonth) }, (_, i) => {
+                                            const date = i + 1;
+                                            const isBusy = isMemberBusy(member, date);
+                                            
+                                            return (
+                                                <button
+                                                    key={date}
+                                                    onClick={() => toggleSchedule(member, date)}
+                                                    className={`h-10 w-10 text-xs rounded transition-all border ${
+                                                        isBusy
+                                                            ? 'bg-red-100 border-red-300 text-red-700 hover:bg-red-200'
+                                                            : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                                                    }`}
+                                                >
+                                                    {date}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-gray-600 mt-2">
+                                        クリックで切り替え:
+                                        <span className="text-green-600 ml-1">緑=参加可能</span>
+                                        <span className="text-red-600 ml-2">赤=参加不可</span>
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {members.length === 0 && (
+                        <div className="text-center py-12 text-gray-500">
+                            <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>メンバーを追加して予定調整を始めましょう！</p>
+                        </div>
+                    )}
+                </div>
             );
         };
 
-        // アプリをレンダリング
-        ReactDOM.render(React.createElement(GroupSchedulePlanner), document.getElementById('root'));
-
-        // Lucide アイコンを初期化
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        ReactDOM.render(<GroupSchedulePlanner />, document.getElementById('root'));
     </script>
 </body>
 </html>
